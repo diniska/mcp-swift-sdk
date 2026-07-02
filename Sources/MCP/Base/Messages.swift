@@ -38,7 +38,7 @@ struct AnyMethod: Method, Sendable {
 
 extension Method where Parameters == Empty {
     public static func request(
-        id: ID = .random
+        id: ID = .randomString
     ) -> Request<Self> {
         Request(id: id, method: name, params: Empty())
     }
@@ -53,7 +53,7 @@ extension Method where Result == Empty {
 extension Method {
     /// Create a request with the given parameters.
     public static func request(
-        id: ID = .random,
+        id: ID = .randomString,
         _ parameters: Self.Parameters
     ) -> Request<Self> {
         Request(id: id, method: name, params: parameters)
@@ -88,7 +88,7 @@ public struct Request<M: Method>: Hashable, Identifiable, Codable, Sendable {
     public let params: M.Parameters
 
     init(
-        id: ID = .random,
+        id: ID,
         method: String,
         params: M.Parameters
     ) {

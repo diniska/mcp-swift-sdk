@@ -184,6 +184,8 @@ public actor Client {
     // Add reusable JSON encoder/decoder
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    
+    private var requestIdType: ID
 
     public init(
         name: String,
@@ -193,13 +195,15 @@ public actor Client {
         websiteUrl: String? = nil,
         icons: [Icon]? = nil,
         capabilities: Capabilities = Capabilities(),
-        configuration: Configuration = .default
+        configuration: Configuration = .default,
+        requestIdType: ID = .string("")
     ) {
         self.clientInfo = Client.Info(
             name: name, version: version, title: title,
             description: description, websiteUrl: websiteUrl, icons: icons)
         self.capabilities = capabilities
         self.configuration = configuration
+        self.requestIdType = requestIdType
     }
 
     /// Connect to the server using the given transport
@@ -642,6 +646,7 @@ public actor Client {
     /// Internal initialization implementation
     private func _initialize() async throws -> Initialize.Result {
         let request = Initialize.request(
+            id: requestIdType.randomized(),
             .init(
                 protocolVersion: Version.latest,
                 capabilities: capabilities,
@@ -666,7 +671,7 @@ public actor Client {
     }
 
     public func ping() async throws {
-        let request = Ping.request()
+        let request = Ping.request(id: requestIdType.randomized())
         _ = try await sendAndAwait(request)
     }
 
@@ -676,7 +681,7 @@ public actor Client {
         -> (description: String?, messages: [Prompt.Message])
     {
         try validateServerCapability(\.prompts, "Prompts")
-        let request = GetPrompt.request(.init(name: name, arguments: arguments))
+        let request = GetPrompt.request(id: requestIdType.randomized(), .init(name: name, arguments: arguments))
         let result = try await sendAndAwait(request)
         return (description: result.description, messages: result.messages)
     }
@@ -687,9 +692,9 @@ public actor Client {
         try validateServerCapability(\.prompts, "Prompts")
         let request: Request<ListPrompts>
         if let cursor = cursor {
-            request = ListPrompts.request(.init(cursor: cursor))
+            request = ListPrompts.request(id: requestIdType.randomized(), .init(cursor: cursor))
         } else {
-            request = ListPrompts.request(.init())
+            request = ListPrompts.request(id: requestIdType.randomized(), .init())
         }
         let result = try await sendAndAwait(request)
         return (prompts: result.prompts, nextCursor: result.nextCursor)
@@ -699,7 +704,7 @@ public actor Client {
 
     public func readResource(uri: String) async throws -> [Resource.Content] {
         try validateServerCapability(\.resources, "Resources")
-        let request = ReadResource.request(.init(uri: uri))
+        let request = ReadResource.request(id: requestIdType.randomized(), .init(uri: uri))
         let result = try await sendAndAwait(request)
         return result.contents
     }
@@ -710,9 +715,9 @@ public actor Client {
         try validateServerCapability(\.resources, "Resources")
         let request: Request<ListResources>
         if let cursor = cursor {
-            request = ListResources.request(.init(cursor: cursor))
+            request = ListResources.request(id: requestIdType.randomized(), .init(cursor: cursor))
         } else {
-            request = ListResources.request(.init())
+            request = ListResources.request(id: requestIdType.randomized(), .init())
         }
         let result = try await sendAndAwait(request)
         return (resources: result.resources, nextCursor: result.nextCursor)
@@ -720,7 +725,7 @@ public actor Client {
 
     public func subscribeToResource(uri: String) async throws {
         try validateServerCapability(\.resources?.subscribe, "Resource subscription")
-        let request = ResourceSubscribe.request(.init(uri: uri))
+        let request = ResourceSubscribe.request(id: requestIdType.randomized(), .init(uri: uri))
         _ = try await sendAndAwait(request)
     }
 
@@ -730,9 +735,9 @@ public actor Client {
         try validateServerCapability(\.resources, "Resources")
         let request: Request<ListResourceTemplates>
         if let cursor = cursor {
-            request = ListResourceTemplates.request(.init(cursor: cursor))
+            request = ListResourceTemplates.request(id: requestIdType.randomized(), .init(cursor: cursor))
         } else {
-            request = ListResourceTemplates.request(.init())
+            request = ListResourceTemplates.request(id: requestIdType.randomized(), .init())
         }
         let result = try await sendAndAwait(request)
         return (templates: result.templates, nextCursor: result.nextCursor)
@@ -746,9 +751,9 @@ public actor Client {
         try validateServerCapability(\.tools, "Tools")
         let request: Request<ListTools>
         if let cursor = cursor {
-            request = ListTools.request(.init(cursor: cursor))
+            request = ListTools.request(id: requestIdType.randomized(), .init(cursor: cursor))
         } else {
-            request = ListTools.request(.init())
+            request = ListTools.request(id: requestIdType.randomized(), .init())
         }
         let result = try await sendAndAwait(request)
         return (tools: result.tools, nextCursor: result.nextCursor)
@@ -771,7 +776,7 @@ public actor Client {
         meta: Metadata? = nil
     ) async throws -> (content: [Tool.Content], isError: Bool?) {
         try validateServerCapability(\.tools, "Tools")
-        let request = CallTool.request(.init(name: name, arguments: arguments, meta: meta))
+        let request = CallTool.request(id: requestIdType.randomized(), .init(name: name, arguments: arguments, meta: meta))
         let result = try await sendAndAwait(request)
         return (content: result.content, isError: result.isError)
     }
@@ -793,7 +798,7 @@ public actor Client {
         meta: Metadata? = nil
     ) throws -> RequestContext<CallTool.Result> {
         try validateServerCapability(\.tools, "Tools")
-        let request = CallTool.request(.init(name: name, arguments: arguments, meta: meta))
+        let request = CallTool.request(id: requestIdType.randomized(), .init(name: name, arguments: arguments, meta: meta))
         return try send(request)
     }
 
@@ -889,7 +894,7 @@ public actor Client {
     /// - SeeAlso: https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/logging/
     public func setLoggingLevel(_ level: LogLevel) async throws {
         try validateServerCapability(\.logging, "Logging")
-        let request = SetLoggingLevel.request(.init(level: level))
+        let request = SetLoggingLevel.request(id: requestIdType.randomized(), .init(level: level))
         _ = try await sendAndAwait(request)
     }
 
@@ -916,6 +921,7 @@ public actor Client {
     ) async throws -> Complete.Result.Completion {
         try validateServerCapability(\.completions, "Completions")
         let request = Complete.request(
+            id: requestIdType.randomized(),
             .init(
                 ref: .prompt(.init(name: promptName)),
                 argument: .init(name: argumentName, value: argumentValue),
@@ -947,6 +953,7 @@ public actor Client {
     ) async throws -> Complete.Result.Completion {
         try validateServerCapability(\.completions, "Completions")
         let request = Complete.request(
+            id: requestIdType.randomized(),
             .init(
                 ref: .resource(.init(uri: resourceURI)),
                 argument: .init(name: argumentName, value: argumentValue),

@@ -7,10 +7,27 @@ public enum ID: Hashable, Sendable {
 
     /// A number ID.
     case number(Int)
+}
 
+// MARK: - Generation
+
+extension ID {
     /// Generates a random string ID.
-    public static var random: ID {
+    public static var randomString: ID {
         return .string(UUID().uuidString)
+    }
+    
+    /// Generates a random number ID.
+    public static var randomNumber: ID {
+        return .number(.random(in: 0 ..< .max))
+    }
+    
+    /// Generates a new random ID value keeping the ID type
+    public func randomized() -> ID {
+        switch self {
+        case .string: return .randomString
+        case .number: return .randomNumber
+        }
     }
 }
 

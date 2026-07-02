@@ -183,6 +183,7 @@ public actor Server {
     private var subscriptions: [String: Set<ID>] = [:]
     /// The task for the message handling loop
     private var task: Task<Void, Never>?
+    private var requestIdType: ID
 
     public init(
         name: String,
@@ -190,12 +191,14 @@ public actor Server {
         title: String? = nil,
         instructions: String? = nil,
         capabilities: Server.Capabilities = .init(),
-        configuration: Configuration = .default
+        configuration: Configuration = .default,
+        requestIdType: ID = .string("")
     ) {
         self.serverInfo = Server.Info(name: name, version: version, title: title)
         self.capabilities = capabilities
         self.configuration = configuration
         self.instructions = instructions
+        self.requestIdType = requestIdType
     }
 
     /// Start the server
@@ -259,7 +262,7 @@ public actor Server {
                         await logger?.error(
                             "Error processing message", metadata: ["error": "\(error)"])
                         let response = AnyMethod.response(
-                            id: requestID ?? .random,
+                            id: requestID ?? .randomString,
                             error: error as? MCPError
                                 ?? MCPError.internalError(error.localizedDescription)
                         )
@@ -487,6 +490,7 @@ public actor Server {
         try validateClientCapability(\.sampling, "Sampling")
 
         let request = CreateSamplingMessage.request(
+            id: requestIdType.randomized(),
             .init(
                 messages: messages,
                 modelPreferences: modelPreferences,
@@ -538,6 +542,7 @@ public actor Server {
         try validateClientCapability(\.elicitation, "Elicitation")
 
         let request = CreateElicitation.request(
+            id: requestIdType.randomized(),
             .form(
                 .init(
                     message: message,
@@ -578,6 +583,7 @@ public actor Server {
         try validateClientCapability(\.elicitation, "Elicitation")
 
         let request = CreateElicitation.request(
+            id: requestIdType.randomized(),
             .url(
                 .init(
                     message: message,
@@ -654,7 +660,7 @@ public actor Server {
 
         try validateClientCapability(\.roots, "Roots")
 
-        let request = ListRoots.request()
+        let request = ListRoots.request(id: requestIdType.randomized())
         let result = try await sendAndAwait(request)
         return result.roots
     }
@@ -682,7 +688,7 @@ public actor Server {
         if batch.items.isEmpty {
             // Empty batch is invalid according to JSON-RPC spec
             let error = MCPError.invalidRequest("Batch array must not be empty")
-            let response = AnyMethod.response(id: .random, error: error)
+            let response = AnyMethod.response(id: .randomString, error: error)
             try await send(response)
             return
         }
