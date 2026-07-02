@@ -183,7 +183,6 @@ public actor Server {
     private var subscriptions: [String: Set<ID>] = [:]
     /// The task for the message handling loop
     private var task: Task<Void, Never>?
-    private var requestIdType: ID
 
     public init(
         name: String,
@@ -191,14 +190,12 @@ public actor Server {
         title: String? = nil,
         instructions: String? = nil,
         capabilities: Server.Capabilities = .init(),
-        configuration: Configuration = .default,
-        requestIdType: ID = .string("")
+        configuration: Configuration = .default
     ) {
         self.serverInfo = Server.Info(name: name, version: version, title: title)
         self.capabilities = capabilities
         self.configuration = configuration
         self.instructions = instructions
-        self.requestIdType = requestIdType
     }
 
     /// Start the server
@@ -490,7 +487,6 @@ public actor Server {
         try validateClientCapability(\.sampling, "Sampling")
 
         let request = CreateSamplingMessage.request(
-            id: requestIdType.randomized(),
             .init(
                 messages: messages,
                 modelPreferences: modelPreferences,
@@ -542,7 +538,6 @@ public actor Server {
         try validateClientCapability(\.elicitation, "Elicitation")
 
         let request = CreateElicitation.request(
-            id: requestIdType.randomized(),
             .form(
                 .init(
                     message: message,
@@ -583,7 +578,6 @@ public actor Server {
         try validateClientCapability(\.elicitation, "Elicitation")
 
         let request = CreateElicitation.request(
-            id: requestIdType.randomized(),
             .url(
                 .init(
                     message: message,
@@ -660,7 +654,7 @@ public actor Server {
 
         try validateClientCapability(\.roots, "Roots")
 
-        let request = ListRoots.request(id: requestIdType.randomized())
+        let request = ListRoots.request()
         let result = try await sendAndAwait(request)
         return result.roots
     }
